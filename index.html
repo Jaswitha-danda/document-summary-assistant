@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Upload a PDF or image and get a clear, focused summary." />
+    <title>Briefly — Document Summary Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <a class="brand" href="/" aria-label="Briefly home"><span class="brand-mark">b.</span> briefly</a>
+        <p class="eyebrow">Document Summary Assistant</p>
+        <h1>Get to the point.<br /><em>Beautifully.</em></h1>
+        <p class="lede">Drop in a PDF or a scanned image. Briefly reads it, finds the signal, and gives you back the essentials.</p>
+      </header>
+
+      <section class="workspace" aria-label="Document summarizer">
+        <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Choose a PDF or image to summarize">
+          <input id="file-input" type="file" accept="application/pdf,image/*" hidden />
+          <div class="upload-icon" aria-hidden="true">↑</div>
+          <h2>Drop your document here</h2>
+          <p>PDF, PNG, JPG or WEBP · up to 20 MB</p>
+          <button id="browse-button" class="button button-dark" type="button">Choose a file</button>
+        </div>
+
+        <div id="file-card" class="file-card hidden" aria-live="polite">
+          <div class="file-type" id="file-type">PDF</div>
+          <div class="file-details"><strong id="file-name"></strong><span id="file-meta"></span></div>
+          <button id="remove-button" class="icon-button" type="button" aria-label="Remove selected document">×</button>
+        </div>
+
+        <section id="controls" class="controls hidden" aria-label="Summary options">
+          <div>
+            <p class="control-label">Summary length</p>
+            <div class="length-options" role="radiogroup" aria-label="Summary length">
+              <label><input type="radio" name="length" value="short" /> <span>Short</span></label>
+              <label><input type="radio" name="length" value="medium" checked /> <span>Medium</span></label>
+              <label><input type="radio" name="length" value="long" /> <span>Long</span></label>
+            </div>
+          </div>
+          <button id="summarize-button" class="button button-accent" type="button">Create summary <span aria-hidden="true">→</span></button>
+        </section>
+      </section>
+
+      <section id="status" class="status hidden" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span><span id="status-text">Reading your document…</span>
+      </section>
+      <p id="error-message" class="error hidden" role="alert"></p>
+
+      <section id="results" class="results hidden" aria-live="polite">
+        <div class="result-heading"><div><p class="eyebrow">Your brief</p><h2>Here’s what matters.</h2></div><button id="copy-button" class="copy-button" type="button">Copy summary</button></div>
+        <article class="summary-card"><p id="summary-text"></p></article>
+        <div class="key-points"><div class="key-points-header"><p class="eyebrow">Key points</p><span id="word-count"></span></div><ul id="key-points-list"></ul></div>
+        <details class="source-details"><summary>View extracted text</summary><p id="source-text"></p></details>
+      </section>
+
+      <footer>Made for clearer thinking. Your document stays in your browser.</footer>
+    </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
