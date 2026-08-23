@@ -1,85 +1,32 @@
 /* global pdfjsLib, Tesseract */
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const els = {
-  dropZone: document.querySelector('#drop-zone'), input: document.querySelector('#file-input'), browse: document.querySelector('#browse-button'),
-  fileCard: document.querySelector('#file-card'), fileName: document.querySelector('#file-name'), fileMeta: document.querySelector('#file-meta'), fileType: document.querySelector('#file-type'), remove: document.querySelector('#remove-button'),
-  controls: document.querySelector('#controls'), summarize: document.querySelector('#summarize-button'), status: document.querySelector('#status'), statusText: document.querySelector('#status-text'), error: document.querySelector('#error-message'),
-  results: document.querySelector('#results'), summary: document.querySelector('#summary-text'), points: document.querySelector('#key-points-list'), source: document.querySelector('#source-text'), words: document.querySelector('#word-count'), copy: document.querySelector('#copy-button')
+  dropZone: document.querySelector('#drop-zone'), input: document.querySelector('#file-input'), browse: document.querySelector('#browse-button'), fileCard: document.querySelector('#file-card'), fileName: document.querySelector('#file-name'), fileMeta: document.querySelector('#file-meta'), fileType: document.querySelector('#file-type'), remove: document.querySelector('#remove-button'), controls: document.querySelector('#controls'), summarize: document.querySelector('#summarize-button'), status: document.querySelector('#status'), statusText: document.querySelector('#status-text'), error: document.querySelector('#error-message'), results: document.querySelector('#results'), summary: document.querySelector('#summary-text'), points: document.querySelector('#key-points-list'), source: document.querySelector('#source-text'), words: document.querySelector('#word-count'), copy: document.querySelector('#copy-button'), stats: document.querySelector('#document-stats')
 };
 let selectedFile = null;
-
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-els.browse.addEventListener('click', (event) => { event.stopPropagation(); els.input.click(); });
-els.dropZone.addEventListener('click', (event) => { if (event.target !== els.input && event.target !== els.browse) els.input.click(); });
-els.dropZone.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') els.input.click(); });
+els.browse.addEventListener('click', (e) => { e.stopPropagation(); els.input.click(); });
+els.dropZone.addEventListener('click', (e) => { if (e.target !== els.input && e.target !== els.browse) els.input.click(); });
+els.dropZone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') els.input.click(); });
 els.input.addEventListener('change', () => selectFile(els.input.files[0]));
-['dragenter', 'dragover'].forEach((name) => els.dropZone.addEventListener(name, (event) => { event.preventDefault(); els.dropZone.classList.add('dragging'); }));
-['dragleave', 'drop'].forEach((name) => els.dropZone.addEventListener(name, (event) => { event.preventDefault(); els.dropZone.classList.remove('dragging'); }));
-els.dropZone.addEventListener('drop', (event) => selectFile(event.dataTransfer.files[0]));
-els.remove.addEventListener('click', reset);
-els.summarize.addEventListener('click', summarizeDocument);
-els.copy.addEventListener('click', async () => { await navigator.clipboard.writeText(els.summary.textContent); els.copy.textContent = 'Copied!'; setTimeout(() => { els.copy.textContent = 'Copy summary'; }, 1600); });
-
-function selectFile(file) {
-  clearError(); els.results.classList.add('hidden');
-  if (!file) return;
-  if (file.size > MAX_FILE_SIZE) return showError('Please choose a document smaller than 20 MB.');
-  if (!(file.type === 'application/pdf' || file.type.startsWith('image/'))) return showError('Briefly supports PDF, PNG, JPG, and WEBP files.');
-  selectedFile = file;
-  els.fileName.textContent = file.name;
-  els.fileMeta.textContent = `${file.type === 'application/pdf' ? 'PDF document' : 'Image document'} · ${formatBytes(file.size)}`;
-  els.fileType.textContent = file.type === 'application/pdf' ? 'PDF' : 'IMG';
-  els.dropZone.classList.add('hidden'); els.fileCard.classList.remove('hidden'); els.controls.classList.remove('hidden');
-}
+['dragenter', 'dragover'].forEach((name) => els.dropZone.addEventListener(name, (e) => { e.preventDefault(); els.dropZone.classList.add('dragging'); }));
+['dragleave', 'drop'].forEach((name) => els.dropZone.addEventListener(name, (e) => { e.preventDefault(); els.dropZone.classList.remove('dragging'); }));
+els.dropZone.addEventListener('drop', (e) => selectFile(e.dataTransfer.files[0])); els.remove.addEventListener('click', reset); els.summarize.addEventListener('click', summarize);
+els.copy.addEventListener('click', async () => { await navigator.clipboard.writeText(els.summary.textContent); els.copy.textContent = 'Copied!'; setTimeout(() => { els.copy.textContent = 'Copy summary'; }, 1400); });
+function selectFile(file) { clearError(); els.results.classList.add('hidden'); if (!file) return; if (file.size > MAX_FILE_SIZE) return showError('Please choose a document smaller than 25 MB.'); if (!(file.type === 'application/pdf' || file.type.startsWith('image/'))) return showError('Briefly supports PDF, PNG, JPG, and WEBP files.'); selectedFile = file; els.fileName.textContent = file.name; els.fileMeta.textContent = `${file.type === 'application/pdf' ? 'PDF document' : 'Image document'} - ${formatBytes(file.size)}`; els.fileType.textContent = file.type === 'application/pdf' ? 'PDF' : 'IMG'; els.dropZone.classList.add('hidden'); els.fileCard.classList.remove('hidden'); els.controls.classList.remove('hidden'); }
 function reset() { selectedFile = null; els.input.value = ''; els.dropZone.classList.remove('hidden'); els.fileCard.classList.add('hidden'); els.controls.classList.add('hidden'); els.results.classList.add('hidden'); clearError(); }
-function formatBytes(bytes) { return `${(bytes / 1024 / 1024).toFixed(bytes < 1024 * 1024 ? 1 : 2)} MB`; }
-function setLoading(active, message = 'Reading your document…') { els.statusText.textContent = message; els.status.classList.toggle('hidden', !active); els.summarize.disabled = active; els.summarize.style.opacity = active ? '.65' : '1'; }
-function showError(message) { els.error.textContent = message; els.error.classList.remove('hidden'); }
-function clearError() { els.error.classList.add('hidden'); els.error.textContent = ''; }
-
-async function summarizeDocument() {
-  if (!selectedFile) return;
-  clearError(); els.results.classList.add('hidden');
-  try {
-    setLoading(true, selectedFile.type === 'application/pdf' ? 'Extracting text from your PDF…' : 'Reading your scanned image with OCR…');
-    const text = selectedFile.type === 'application/pdf' ? await extractPdfText(selectedFile) : await extractImageText(selectedFile);
-    if (text.trim().length < 60) throw new Error('There was not enough readable text to summarize. Try a clearer scan or a text-based PDF.');
-    setLoading(true, 'Finding the important ideas…');
-    const length = document.querySelector('input[name="length"]:checked').value;
-    const result = buildSummary(text, length);
-    renderResults(text, result);
-  } catch (error) { showError(error.message || 'Something went wrong while processing this document. Please try another file.'); }
-  finally { setLoading(false); }
-}
-async function extractPdfText(file) {
-  if (!window.pdfjsLib) throw new Error('The PDF reader could not load. Please check your internet connection and try again.');
-  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-  const pages = [];
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    setLoading(true, `Reading page ${pageNumber} of ${pdf.numPages}…`);
-    const content = await (await pdf.getPage(pageNumber)).getTextContent();
-    pages.push(content.items.map((item) => item.str).join(' '));
-  }
-  return pages.join('\n\n');
-}
-async function extractImageText(file) {
-  if (!window.Tesseract) throw new Error('The OCR reader could not load. Please check your internet connection and try again.');
-  const result = await Tesseract.recognize(file, 'eng', { logger: (message) => { if (message.status === 'recognizing text') setLoading(true, `Reading image… ${Math.round(message.progress * 100)}%`); } });
-  return result.data.text;
-}
-function buildSummary(text, length) {
-  const cleaned = text.replace(/\s+/g, ' ').trim();
-  const sentences = cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()).filter((sentence) => sentence.split(' ').length > 4) || [];
-  const frequency = wordFrequency(cleaned);
-  const scored = sentences.map((sentence, index) => ({ sentence, index, score: scoreSentence(sentence, frequency) }));
-  const count = length === 'short' ? 2 : length === 'medium' ? 4 : 6;
-  const chosen = scored.sort((a, b) => b.score - a.score).slice(0, Math.min(count, scored.length)).sort((a, b) => a.index - b.index).map((item) => item.sentence);
-  const points = scored.sort((a, b) => b.score - a.score).filter((item) => item.sentence.length < 260).slice(0, 5).map((item) => item.sentence);
-  return { summary: chosen.join(' '), points };
-}
-function wordFrequency(text) {
-  const stopWords = new Set('a an and are as at be by for from has have in is it its of on or that the this to was were will with you your we our they their not can may should would about into than then also such'.split(' '));
-  return text.toLowerCase().match(/[a-z]{3,}/g).reduce((map, word) => { if (!stopWords.has(word)) map[word] = (map[word] || 0) + 1; return map; }, {});
-}
-function scoreSentence(sentence, frequency) { const words = sentence.toLowerCase().match(/[a-z]{3,}/g) || []; return words.reduce((sum, word) => sum + (frequency[word] || 0), 0) / Math.max(words.length, 1) + (/(important|key|main|must|should|goal|result|conclusion)/i.test(sentence) ? 2 : 0); }
-function renderResults(text, result) { els.summary.textContent = result.summary; els.points.replaceChildren(...result.points.map((point) => { const item = document.createElement('li'); item.textContent = point; return item; })); els.source.textContent = text; els.words.textContent = `${text.trim().split(/\s+/).length.toLocaleString()} words read`; els.results.classList.remove('hidden'); els.results.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function formatBytes(bytes) { return bytes < 1048576 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1048576).toFixed(2)} MB`; }
+function setLoading(active, message = 'Reading your document...') { els.statusText.textContent = message; els.status.classList.toggle('hidden', !active); els.summarize.disabled = active; els.summarize.style.opacity = active ? '.65' : '1'; }
+function showError(message) { els.error.textContent = message; els.error.classList.remove('hidden'); } function clearError() { els.error.classList.add('hidden'); }
+async function summarize() { if (!selectedFile) return; clearError(); els.results.classList.add('hidden'); try { setLoading(true, selectedFile.type === 'application/pdf' ? 'Extracting text from your PDF...' : 'Reading your image with OCR...'); const data = selectedFile.type === 'application/pdf' ? await readPdf(selectedFile) : { text: await readImage(selectedFile), pages: 1, usedOcr: true }; if (data.text.trim().length < 60) throw new Error('There was not enough readable text to summarize. Try a clearer scan or a text-based PDF.'); setLoading(true, 'Finding the important ideas...'); render(data, makeSummary(data.text, document.querySelector('input[name="length"]:checked').value)); } catch (e) { showError(e.message || 'Something went wrong. Please try another file.'); } finally { setLoading(false); } }
+async function readPdf(file) { if (!window.pdfjsLib) throw new Error('The PDF reader could not load. Check your internet connection and try again.'); const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise; const pages = []; let usedOcr = false; for (let n = 1; n <= pdf.numPages; n += 1) { setLoading(true, `Reading page ${n} of ${pdf.numPages}...`); const page = await pdf.getPage(n); let text = await pageText(page); if (text.replace(/\s/g, '').length < 25) { usedOcr = true; setLoading(true, `Scanned page detected - using OCR on page ${n}...`); text = await pageOcr(page); } pages.push(text); } return { text: pages.join('\n\n'), pages: pdf.numPages, usedOcr }; }
+async function pageText(page) { const content = await page.getTextContent(); const lines = new Map(); content.items.forEach((item) => { const y = Math.round(item.transform[5] / 4) * 4; const line = lines.get(y) || []; line.push({ x: item.transform[4], text: item.str }); lines.set(y, line); }); return [...lines.entries()].sort((a, b) => b[0] - a[0]).map(([, line]) => line.sort((a, b) => a.x - b.x).map((part) => part.text).join(' ')).join('\n'); }
+async function pageOcr(page) { if (!window.Tesseract) throw new Error('This scanned PDF needs OCR, but the OCR reader could not load.'); const viewport = page.getViewport({ scale: 1.6 }); const canvas = document.createElement('canvas'); canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height); await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise; return (await recognize(canvas.toDataURL('image/png'))).data.text; }
+async function readImage(file) { if (!window.Tesseract) throw new Error('The OCR reader could not load. Check your internet connection and try again.'); return (await recognize(file)).data.text; }
+function recognize(source) { return Tesseract.recognize(source, 'eng', { logger: (m) => { if (m.status === 'recognizing text') setLoading(true, `Reading image... ${Math.round(m.progress * 100)}%`); } }); }
+function makeSummary(text, length) { const clean = text.replace(/\s+/g, ' ').trim(); const sentences = (clean.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []).map((s) => s.trim()).filter((s) => s.split(' ').length > 4); const freq = frequency(clean); const ranked = sentences.map((sentence, index) => ({ sentence, index, score: score(sentence, freq) + Math.max(0, 1.2 - index * .03) })).sort((a, b) => b.score - a.score); const count = length === 'short' ? 2 : length === 'medium' ? 4 : 6; const best = distinct(ranked, count); return { summary: best.sort((a, b) => a.index - b.index).map((x) => x.sentence).join(' '), points: distinct(ranked.filter((x) => x.sentence.length < 260), 5).map((x) => x.sentence), keywords: Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([word]) => word) }; }
+function frequency(text) { const stop = new Set('a an and are as at be by for from has have in is it its of on or that the this to was were will with you your we our they their not can may should would about into than then also such'.split(' ')); return (text.toLowerCase().match(/[a-z]{3,}/g) || []).reduce((all, word) => { if (!stop.has(word)) all[word] = (all[word] || 0) + 1; return all; }, {}); }
+function score(sentence, freq) { const words = sentence.toLowerCase().match(/[a-z]{3,}/g) || []; return words.reduce((n, word) => n + (freq[word] || 0), 0) / Math.max(words.length, 1) + (/(important|key|main|must|should|goal|result|conclusion)/i.test(sentence) ? 2 : 0); }
+function distinct(ranked, count) { const out = []; for (const item of ranked) { const duplicate = out.some((saved) => overlap(saved.sentence, item.sentence) > .65); if (!duplicate) out.push(item); if (out.length === count) break; } return out; }
+function overlap(a, b) { const first = new Set(a.toLowerCase().match(/[a-z]{4,}/g) || []); const second = new Set(b.toLowerCase().match(/[a-z]{4,}/g) || []); return [...first].filter((word) => second.has(word)).length / Math.max(1, Math.min(first.size, second.size)); }
+function render(data, result) { const words = data.text.trim().split(/\s+/).length; els.summary.textContent = result.summary; els.points.replaceChildren(...result.points.map((point) => { const li = document.createElement('li'); li.textContent = point; return li; })); const labels = [`~${Math.ceil(words / 220)} min read`, `${data.pages} ${data.pages === 1 ? 'page' : 'pages'}`, data.usedOcr ? 'OCR enhanced' : 'Text extracted', ...result.keywords.map((word) => `#${word}`)]; els.stats.replaceChildren(...labels.map((label) => { const tag = document.createElement('span'); tag.textContent = label; tag.style.cssText = 'background:#dcebe0;border-radius:999px;color:#34503c;font:0.72rem DM Mono,monospace;padding:7px 10px;display:inline-block;margin:0 6px 12px 0'; return tag; })); els.source.textContent = data.text; els.words.textContent = `${words.toLocaleString()} words read`; els.results.classList.remove('hidden'); els.results.scrollIntoView({ behavior: 'smooth', block: 'start' }); }

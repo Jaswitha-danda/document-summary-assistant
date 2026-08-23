@@ -9,9 +9,9 @@ No package installation is needed. Open `index.html` in a modern browser, or ser
 ## Features
 
 - Drag-and-drop and file-picker upload for PDFs, PNG, JPG, and WEBP files
-- PDF text extraction via PDF.js
+- PDF text extraction via PDF.js, with OCR fallback for scanned PDF pages
 - OCR for scanned image documents via Tesseract.js
-- Extractive smart summaries in short, medium, and long formats
+- Extractive smart summaries in short, medium, and long formats, with duplicate-point filtering
 - Key-point extraction, copy-to-clipboard, readable source text, loading states, and error handling
 - Responsive layout for mobile and desktop
 

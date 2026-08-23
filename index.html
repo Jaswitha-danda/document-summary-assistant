@@ -24,7 +24,7 @@
           <input id="file-input" type="file" accept="application/pdf,image/*" hidden />
           <div class="upload-icon" aria-hidden="true">↑</div>
           <h2>Drop your document here</h2>
-          <p>PDF, PNG, JPG or WEBP · up to 20 MB</p>
+          <p>PDF, PNG, JPG or WEBP · up to 25 MB</p>
           <button id="browse-button" class="button button-dark" type="button">Choose a file</button>
         </div>
 
@@ -54,6 +54,7 @@
 
       <section id="results" class="results hidden" aria-live="polite">
         <div class="result-heading"><div><p class="eyebrow">Your brief</p><h2>Here’s what matters.</h2></div><button id="copy-button" class="copy-button" type="button">Copy summary</button></div>
+        <div id="document-stats" class="document-stats"></div>
         <article class="summary-card"><p id="summary-text"></p></article>
         <div class="key-points"><div class="key-points-header"><p class="eyebrow">Key points</p><span id="word-count"></span></div><ul id="key-points-list"></ul></div>
         <details class="source-details"><summary>View extracted text</summary><p id="source-text"></p></details>
